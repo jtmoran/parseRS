@@ -1,0 +1,14 @@
+ParseRS - John Moran (john@jtmoran.com)
+
+ParseRS can be used extract browsing information from Automatic Crash 
+Recovery files created by Internet Explorer.  Please use and distribute 
+freely.
+   
+Options:
+  
+   -d, --directory <directory>   Read the contents of all .dat 
+                                 files in a directory
+   -r, --recovery <file>         Read a single recovery store file 
+                                 and its associated tab data files
+   -t, --tab <file>              Read a single tab data file
+   -h, --help                    Show help'''
