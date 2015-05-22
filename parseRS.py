@@ -1,9 +1,11 @@
 '''
-ParseRS v20140715 - John Moran (john@jtmoran.com)
+ParseRS v20150522 - John Moran (john@jtmoran.com)
 
 ParseRS can be used extract browsing information from Automatic Crash 
 Recovery files created by Internet Explorer.  Please use and distribute 
 freely.
+
+Requires Python 3 and OleFileIO_PL library.
    
 Options:
   
@@ -34,7 +36,7 @@ def readDir (dir):
     fileList = []
     #Get list of RS files in dir
     for file in glob.glob("RecoveryStore*.dat"):
-        fileList.append(dir + "/" + file)
+        fileList.append(file)
     #If 1+ RS files found continue
     if(len(fileList) < 1):
         print("\n[-] No RecoveryStore files found in '" + dir + "'")
@@ -43,11 +45,12 @@ def readDir (dir):
         print("\n[+] " + str(len(fileList)) + " RecoveryStore files found in '" + dir + "'")
     #Pass each RS file to readRS to be parsed
     for f in fileList:
-        readRSF(f)
+        readRSF(dir, f)
         
-def readRSF(fname): 
+def readRSF(filePath, fileName): 
     '''Parses the information stored in the RecoveryStore file.
     Accepts single argument: the file name of the RecoveryStore file.'''
+    fname = os.path.join(filePath, fileName)
     print("\n[+] Parsing '" + fname + "'")
     try:
         #Check if file is the correct format
@@ -78,9 +81,12 @@ def readRSF(fname):
                 tempStream = rs.openstream(s[0])
                 data = tempStream.read()
                 tdName = ""
-                tdName = "".join("%02x" % b for b in data)
-                tdName = "{" + buildGUID(tdName[:32]) + "}.dat"
-                readTDF(tdName, path)
+                n = 0
+                while ((n * 16) < len(data)) :
+                    tdName = "".join("%02x" % b for b in data[n * 16 : n * 16 + 16])
+                    n = n + 1
+                    tdName = "{" + buildGUID(tdName[:32]) + "}.dat"
+                    readTDF(filePath, tdName)
         #Get all closed tabs
         print("\n   Closed Tabs:")
         for s in streams:
@@ -94,23 +100,34 @@ def readRSF(fname):
                     tdName = "".join("%02x" % b for b in data[n * 16 : n * 16 + 16])
                     n = n + 1
                     tdName = "{" + buildGUID(tdName[:32]) + "}.dat"
-                    readTDF(tdName, path)
+                    readTDF(filePath, tdName)
     except:
-        print("\n[-] Error reading '" + fname + "'")
- 
-def readTDF(tdName, path): 
+        print("\n   [-] Error reading '" + fname + "': ", sys.exc_info()[1])
+		
+def readTDF(filePath, fileName): 
     '''Parses the information stored in the tab data file.
     Accepts single argument: the file name of the tab data file.'''
-    fullPath = path + "\\" + tdName
+    tdName = os.path.join(filePath, fileName)
     print("\n     [+] Parsing '" + tdName + "'\n")
     try:
         #Check if file is the correct format
-        if not (OleFileIO_PL.isOleFile(fullPath)):
+        if not (OleFileIO_PL.isOleFile(tdName)):
             print("\n     [-] Unable to parse file: Incorrect format!")
             return
-        rs = OleFileIO_PL.OleFileIO(fullPath)
+        rs = OleFileIO_PL.OleFileIO(tdName)
         #Get list of streams
         streams = rs.listdir()
+        #Get travel order
+        for s in streams:
+            if(s[0] == "TravelLog"):
+                tempStream = rs.openstream(s[0])
+                data = tempStream.read()
+                pos = 0
+                travel = []
+                while (pos < len(data)):
+                    travel.append(struct.unpack('B', data[pos:pos+1])[0])
+                    pos = pos + 4
+                print("       Page Order: " + '%s' % ', '.join(map(str, travel)) + "\n")
         #Get all pages (TL#)
         sStreams = []
         for s in (streams):
@@ -132,26 +149,15 @@ def readTDF(tdName, path):
                     if (i % 2 == 0) :
                         data_sub += (data[i:i+1]) 
                     i = i + 1
-                pattern = re.compile(b"[A-Za-z0-9/\-:.,_$%?'()[\]=<> ]{5,500}")
+                pattern = re.compile(b"[A-Za-z0-9/\-+:.,_$%?'()[\]=<> &]{5,500}")
                 strings = pattern.findall(data_sub, 4)
                 if (len(strings) > 0) :
-                    print("       Page " + tabNo[0] + ": " + strings[0].decode("ascii"))
-        #Get travel order
-        for s in streams:
-            if(s[0] == "TravelLog"):
-                tempStream = rs.openstream(s[0])
-                data = tempStream.read()
-                pos = 0
-                travel = []
-                while (pos < len(data)):
-                    travel.append(struct.unpack('B', data[pos:pos+1])[0])
-                    pos = pos + 4
-                print("\n       Page Order: " + '%s' % ', '.join(map(str, travel)))
+                    print("       Page " + tabNo[0] + ":\n")
+                    print("         URL:   " + strings[0].decode("ascii"))
+                    print("         Title: " + strings[1].decode("ascii") + "\n")
     except:
-        print("       [-] Error reading '" + fullPath + "'")
+        print("       [-] Error reading '" + tdName + "': ", sys.exc_info()[1])
  
- 
-    
 def buildGUID(guid):
     '''Build GUID from hex string
     Accepts a single argument: a hex string'''
@@ -190,7 +196,7 @@ def main (argv):
         print(__doc__)
         sys.exit(2)	
     
-    print("ParseRS v20140715")
+    print("ParseRS v20150522")
     for opt, arg in opts:
 	    #Help
         if opt in ("-h", "--help"):
@@ -198,13 +204,18 @@ def main (argv):
             sys.exit(2)	
     	#Directory
         if opt in ("-d", "--directory"):
-            readDir(arg)
+            filePath = os.path.abspath(arg)
+            readDir(filePath)
         #Recovery
         if opt in ("-r", "--recovery"):
-            readRSF(arg)
+            filePath = os.path.dirname(os.path.abspath(arg))
+            fileName = os.path.basename(os.path.abspath(arg))
+            readRSF(filePath, fileName)
     	#Tab
         if opt in ("-t", "--tab"):
-            print("Tab")
+            filePath = os.path.dirname(os.path.abspath(arg))
+            fileName = os.path.basename(os.path.abspath(arg))
+            readTDF(filePath, fileName)
 
 
 if __name__ == "__main__":
