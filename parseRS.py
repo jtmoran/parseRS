@@ -1,5 +1,5 @@
 '''
-ParseRS v20160617 - John Moran (john@jtmoran.com)
+ParseRS v20161214 - John Moran (john@jtmoran.com)
 
 ParseRS can be used extract browsing information from Automatic Crash 
 Recovery files created by Internet Explorer.  
@@ -127,6 +127,9 @@ def readTDF(filePath, fileName, pad):
         rs = OleFileIO_PL.OleFileIO(tdName)
         #Get list of streams
         streams = rs.listdir()
+        #Get tab created time
+        tGuid = fileName.replace("{", "").replace("}.dat", "")
+        print(pad + "    Tab Created:  " + buildTime(tGuid)) + " UTC"
         #Get travel order
         for s in streams:
             if(s[0] == "TravelLog"):
@@ -233,7 +236,7 @@ def main (argv):
         if opt in ("-t", "--tab"):
             filePath = os.path.dirname(os.path.abspath(arg))
             fileName = os.path.basename(os.path.abspath(arg))
-            readTDF(filePath, fileName)
+            readTDF(filePath, fileName, "")
 
 
 if __name__ == "__main__":
