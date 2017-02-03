@@ -1,5 +1,5 @@
 '''
-ParseRS v20161214 - John Moran (john@jtmoran.com)
+ParseRS v20170203 - John Moran (john@jtmoran.com)
 
 ParseRS can be used extract browsing information from Automatic Crash 
 Recovery files created by Internet Explorer.  
@@ -89,7 +89,7 @@ def readRSF(filePath, fileName):
             if((s[0][:2] == "TS") ):
                 tempStream = rs.openstream(s[0])
                 data = tempStream.read()
-                tsStr = "".join("{:02x}".format(ord(c)) for c in data)
+                tsStr = "".join("{:02x}".format(c) for c in data)
                 b = 0
                 while b < len(tsStr):
                     tdName = "{" + buildGUID(tsStr[b:b + 32]) + "}.dat"
@@ -103,7 +103,7 @@ def readRSF(filePath, fileName):
                 data = tempStream.read()
                 tempStream = rs.openstream(s[0])
                 data = tempStream.read()
-                tsStr = "".join("{:02x}".format(ord(c)) for c in data)
+                tsStr = "".join("{:02x}".format(c) for c in data)
                 b = 0
                 while b < len(tsStr):
                     tdName = "{" + buildGUID(tsStr[b:b + 32]) + "}.dat"
@@ -129,7 +129,7 @@ def readTDF(filePath, fileName, pad):
         streams = rs.listdir()
         #Get tab created time
         tGuid = fileName.replace("{", "").replace("}.dat", "")
-        print(pad + "    Tab Created:  " + buildTime(tGuid)) + " UTC"
+        print(pad + "    Tab Created:  " + buildTime(tGuid) + " UTC")
         #Get travel order
         for s in streams:
             if(s[0] == "TravelLog"):
@@ -176,7 +176,7 @@ def readTDF(filePath, fileName, pad):
                             print(pad + "                  " + ustrings[n].decode("ascii"))
                             n += 1
     except:
-        print(pad + "Error reading '" + tdName)
+        print(pad + "Error reading '" + tdName + "': ", sys.exc_info()[1])
  
 def buildGUID(guid):
     '''Build GUID from hex string
